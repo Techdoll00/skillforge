@@ -141,7 +141,7 @@
     "jose": "^6.2.3",
     "leo-profanity": "^1.9.0",
     "motion": "^12.42.2",
-    "openai": "^6.45.0",
+    "openai": "^7.0.0",
     "opencc-js": "^1.4.0",
     "pako": "^3.0.1",
     "pinyin-pro": "^3.28.1",
