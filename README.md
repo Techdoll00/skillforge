@@ -19,10 +19,10 @@ The 10 built-in skill apps ship as desktop applications:
 
 | | | |
 |---|---|---|
-| ![Book to Skill](/icons/default/book-to-skill.svg) | ![Grill Me](/icons/default/grill-me.svg) | ![First Principles](/icons/default/first-principles.svg) |
-| ![Pre-Mortem](/icons/default/pre-mortem.svg) | ![Via Negativa](/icons/default/via-negativa.svg) | ![Hermes Agent](/icons/default/hermes-agent.svg) |
-| ![Daily Briefing](/icons/default/daily-briefing.svg) | ![Agent Eval](/icons/default/agent-eval.svg) | ![Claude Code](/icons/default/claude-code.svg) |
-| ![Obsidian](/icons/default/obsidian.svg) | | |
+| ![Book to Skill](public/icons/default/book-to-skill.svg) | ![Grill Me](public/icons/default/grill-me.svg) | ![First Principles](public/icons/default/first-principles.svg) |
+| ![Pre-Mortem](public/icons/default/pre-mortem.svg) | ![Via Negativa](public/icons/default/via-negativa.svg) | ![Hermes Agent](public/icons/default/hermes-agent.svg) |
+| ![Daily Briefing](public/icons/default/daily-briefing.svg) | ![Agent Eval](public/icons/default/agent-eval.svg) | ![Claude Code](public/icons/default/claude-code.svg) |
+| ![Obsidian](public/icons/default/obsidian.svg) | | |
 
 ## Features
 
