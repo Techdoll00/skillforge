@@ -1,0 +1,13 @@
+{
+  "name": "skillforge-ai-api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "ai": "7.0.22",
+    "@ai-sdk/openai": "4.0.11"
+  }
+}

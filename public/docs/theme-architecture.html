@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme architecture (implementation) - Skillforge OS Docs</title>
+  <link rel="icon" href="/icons/mac-192.png">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    // Resolve dark mode before paint to avoid a flash. Priority:
+    //   1. Skillforge OS parent window color scheme (when embedded same-origin, e.g. the
+    //      Internet Explorer app) — follows the OS dark-mode toggle live.
+    //   2. The browser's prefers-color-scheme (standalone docs viewing).
+    (function () {
+      var root = document.documentElement;
+      function parentScheme() {
+        try {
+          if (window.parent && window.parent !== window) {
+            var pdoc = window.parent.document;
+            if (pdoc && pdoc.documentElement) {
+              return pdoc.documentElement.getAttribute("data-os-color-scheme");
+            }
+          }
+        } catch (e) {
+          // Cross-origin parent — not readable, fall back to media query.
+        }
+        return undefined;
+      }
+      function resolveDark() {
+        var scheme = parentScheme();
+        if (scheme === "dark") return true;
+        if (scheme === "light" || scheme === "") return false;
+        // A null attribute means the parent simply isn't in dark mode; when
+        // embedded that still implies light. Only fall back to the media query
+        // when standalone.
+        if (scheme === null && window.parent && window.parent !== window) {
+          try {
+            // Confirm the parent is actually readable (same-origin) before trusting null.
+            void window.parent.document.documentElement;
+            return false;
+          } catch (e) {
+            /* unreadable -> standalone-style fallback */
+          }
+        }
+        return !!(
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+        );
+      }
+      function apply() {
+        var dark = resolveDark();
+        root.setAttribute("data-color-scheme", dark ? "dark" : "light");
+        window.__ryosDocsDark = dark;
+        // Mermaid bakes its palette into the SVG at render time, so re-render
+        // any diagrams when the scheme changes after the initial paint.
+        if (typeof window.__ryosDocsRenderMermaid === "function") {
+          window.__ryosDocsRenderMermaid();
+        }
+      }
+      apply();
+      window.__ryosDocsApplyScheme = apply;
+      try {
+        if (window.matchMedia) {
+          window
+            .matchMedia("(prefers-color-scheme: dark)")
+            .addEventListener("change", apply);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+      // Live-follow the Skillforge OS dark-mode toggle when embedded same-origin.
+      try {
+        if (window.parent && window.parent !== window) {
+          var pdoc = window.parent.document;
+          if (pdoc && pdoc.documentElement && window.MutationObserver) {
+            new MutationObserver(apply).observe(pdoc.documentElement, {
+              attributes: true,
+              attributeFilter: ["data-os-color-scheme"],
+            });
+          }
+        }
+      } catch (e) {
+        /* cross-origin parent — nothing to observe */
+      }
+    })();
+  </script>
+  <style>
+    @font-face { font-family: "Geneva"; src: url("/fonts/geneva-12.woff2") format("woff2"); }
+    @font-face { font-family: "Monaco"; src: url("/fonts/monacottf.woff2") format("woff2"); }
+
+    /* Color tokens — light defaults. Dark overrides live below, keyed on the
+       resolved data-color-scheme attribute (set by the head script) with a
+       prefers-color-scheme fallback for standalone viewing. */
+    :root {
+      --doc-bg: #fff;
+      --doc-text: #000;
+      --doc-text-secondary: #333;
+      --doc-text-tertiary: #666;
+      --doc-text-faint: #999;
+      --doc-link: #00f;
+      --doc-border: #ccc;
+      --doc-border-light: #ddd;
+      --doc-surface: #f0f0f0;
+      --doc-surface-alt: #f8f8f8;
+      --doc-hover-bg: #f0f0f0;
+      --doc-accent-bg: #000;
+      --doc-accent-text: #fff;
+      --doc-mermaid-node: #f8f8f8;
+      --doc-mermaid-stroke: #ccc;
+      --doc-mermaid-edge-label: #fff;
+      color-scheme: light;
+    }
+    :root[data-color-scheme="dark"] {
+      --doc-bg: #1e1e21;
+      --doc-text: #ededf0;
+      --doc-text-secondary: #c4c4ca;
+      --doc-text-tertiary: #9a9aa2;
+      --doc-text-faint: #6e6e74;
+      --doc-link: #6ba3ff;
+      --doc-border: rgba(255, 255, 255, 0.16);
+      --doc-border-light: rgba(255, 255, 255, 0.12);
+      --doc-surface: #2c2c30;
+      --doc-surface-alt: #27272b;
+      --doc-hover-bg: rgba(255, 255, 255, 0.08);
+      --doc-accent-bg: #ededf0;
+      --doc-accent-text: #1e1e21;
+      --doc-mermaid-node: #2c2c30;
+      --doc-mermaid-stroke: rgba(255, 255, 255, 0.22);
+      --doc-mermaid-edge-label: #1e1e21;
+      color-scheme: dark;
+    }
+    /* Standalone fallback: honor the OS preference unless the page was explicitly
+       resolved to light (data-color-scheme="light" wins over this block). */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-color-scheme="light"]) {
+        --doc-bg: #1e1e21;
+        --doc-text: #ededf0;
+        --doc-text-secondary: #c4c4ca;
+        --doc-text-tertiary: #9a9aa2;
+        --doc-text-faint: #6e6e74;
+        --doc-link: #6ba3ff;
+        --doc-border: rgba(255, 255, 255, 0.16);
+        --doc-border-light: rgba(255, 255, 255, 0.12);
+        --doc-surface: #2c2c30;
+        --doc-surface-alt: #27272b;
+        --doc-hover-bg: rgba(255, 255, 255, 0.08);
+        --doc-accent-bg: #ededf0;
+        --doc-accent-text: #1e1e21;
+        --doc-mermaid-node: #2c2c30;
+        --doc-mermaid-stroke: rgba(255, 255, 255, 0.22);
+        --doc-mermaid-edge-label: #1e1e21;
+        color-scheme: dark;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Geneva", system-ui, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: var(--doc-bg);
+      color: var(--doc-text);
+    }
+    a { color: var(--doc-link); }
+    a:hover { text-decoration: none; }
+    code, pre { font-family: "Monaco", monospace; font-size: 11px; }
+    code { background: var(--doc-surface); padding: 1px 4px; }
+    pre { background: var(--doc-surface-alt); border: 1px solid var(--doc-border-light); padding: 12px; overflow-x: auto; margin: 12px 0; }
+    pre code { background: none; padding: 0; }
+    
+    /* Layout */
+    .header {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--doc-bg); border-bottom: 1px solid var(--doc-border);
+      padding: 0 16px; height: 40px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .header-left img { width: 20px; height: 20px; display: block; }
+    .header-left span { font-weight: bold; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .header-right a { text-decoration: none; color: var(--doc-text-secondary); }
+    .header-right a:hover { color: var(--doc-text); }
+    .header-right .github { display: flex; align-items: center; gap: 4px; }
+    .header-right .launch { background: var(--doc-accent-bg); color: var(--doc-accent-text); padding: 4px 12px; }
+    
+    .container { display: flex; max-width: 1100px; margin: 0 auto; }
+    
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      border-right: 1px solid var(--doc-border);
+      padding: 12px;
+      position: sticky; top: 40px;
+      height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    .sidebar a {
+      display: block; padding: 4px 8px; margin: 2px 0;
+      text-decoration: none; color: var(--doc-text-secondary);
+      font-size: 11px;
+    }
+    .sidebar a:hover { background: var(--doc-hover-bg); }
+    .sidebar a.active { background: var(--doc-accent-bg); color: var(--doc-accent-text); }
+    
+    /* Tree hierarchy styles */
+    .nav-group { margin: 4px 0; }
+    .nav-spacer { width: 8px; flex-shrink: 0; } /* Same width as toggle arrow */
+    .nav-no-toggle { cursor: default; }
+    .nav-toggle {
+      display: flex; align-items: center; gap: 4px;
+      background: none; border: none; padding: 0; width: 100%;
+      cursor: pointer; text-align: left; font: inherit; color: inherit;
+    }
+    .nav-toggle:hover { background: var(--doc-hover-bg); }
+    .nav-toggle svg { flex-shrink: 0; opacity: 0.6; transition: transform 0.2s; }
+    .nav-toggle a { flex: 1; padding: 4px 8px; margin: 0; pointer-events: auto; font-size: 11px; }
+    .nav-children { margin-left: 12px; overflow: hidden; transition: height 0.2s ease-out; }
+    .nav-child { padding-left: 8px !important; font-size: 10px !important; color: var(--doc-text-tertiary) !important; }
+    .nav-child:hover { color: var(--doc-text) !important; }
+    .nav-child.active { color: var(--doc-accent-text) !important; }
+    
+    .content { flex: 1; padding: 24px 32px; min-width: 0; }
+    
+    /* Typography */
+    h1 { font-size: 18px; border-bottom: 1px solid var(--doc-border); padding-bottom: 8px; margin-bottom: 16px; }
+    hr { border: none; border-top: 1px solid var(--doc-border); margin: 16px 0; }
+    h2 { font-size: 14px; margin: 24px 0 12px; }
+    h3 { font-size: 12px; margin: 16px 0 8px; }
+    h4 { font-size: 11px; margin: 12px 0 6px; font-weight: bold; }
+    p { margin: 8px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    li { margin: 4px 0; }
+    
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11px; }
+    th, td { border: 1px solid var(--doc-border); padding: 6px 8px; text-align: left; }
+    th { background: var(--doc-surface); font-weight: bold; }
+    
+    /* Mermaid diagrams */
+    pre.mermaid { background: none; border: none; padding: 0; text-align: center; margin: 16px 0; }
+    .mermaid svg { max-width: 100%; height: auto; font-family: "Geneva", system-ui, sans-serif !important; }
+    .mermaid .node rect, .mermaid .node circle, .mermaid .node polygon { fill: var(--doc-mermaid-node) !important; stroke: var(--doc-mermaid-stroke) !important; }
+    .mermaid .edgeLabel { background: var(--doc-mermaid-edge-label) !important; font-size: 10px !important; }
+    .mermaid .label { font-size: 10px !important; }
+    .mermaid .nodeLabel { font-size: 10px !important; }
+    .mermaid .cluster-label { font-size: 10px !important; }
+    .mermaid .messageText { font-size: 10px !important; }
+    .mermaid .actor { font-size: 10px !important; }
+    .mermaid .labelText { font-size: 10px !important; }
+    
+    /* Collapsible details */
+    details { margin: 8px 0; }
+    details summary { 
+      cursor: pointer; 
+      color: var(--doc-text-tertiary); 
+      font-size: 11px;
+      padding: 4px 0;
+      user-select: none;
+    }
+    details summary:hover { color: var(--doc-text); }
+    details[open] summary { margin-bottom: 8px; }
+    details ul { margin-top: 0; }
+    
+    /* Navigation */
+    .nav { display: flex; justify-content: space-between; margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--doc-border); }
+    .nav a { text-decoration: none; color: var(--doc-text-secondary); }
+    .nav a:hover { color: var(--doc-text); }
+    
+    /* Mobile menu button */
+    .menu-btn { 
+      display: none; 
+      background: transparent; 
+      border: 0; 
+      padding: 4px; 
+      cursor: pointer; 
+      line-height: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 0;
+      color: inherit;
+    }
+    .menu-btn svg { display: block; width: 18px; height: 18px; pointer-events: none; }
+    @media screen and (max-width: 768px) {
+      .menu-btn { 
+        display: -webkit-flex !important;
+        display: flex !important; 
+        -webkit-align-items: center;
+        align-items: center; 
+        -webkit-justify-content: center;
+        justify-content: center;
+      }
+      .header-left img { display: none !important; }
+      .sidebar { 
+        position: fixed; left: -240px; top: 40px; 
+        width: 240px; height: calc(100vh - 40px);
+        background: var(--doc-bg); z-index: 20;
+        transition: left 0.2s;
+      }
+      .sidebar.open { left: 0; box-shadow: 2px 0 8px rgba(0,0,0,0.1); }
+      .content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <button class="menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit">
+        <img src="/icons/mac-192.png" alt="Skillforge OS" width="20" height="20">
+        <span>Skillforge OS</span>
+      </a>
+      <span style="color:var(--doc-text-faint)">/</span>
+      <span style="color:var(--doc-text-tertiary)">Docs</span>
+    </div>
+    <div class="header-right">
+      <a href="https://github.com/ryokun6/ryos" target="_blank" class="github">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a href="/" class="launch">Launch</a>
+    </div>
+  </header>
+  
+  <div class="container">
+    <nav class="sidebar">
+      <div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/overview" class="">1. Overview</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/architecture" class="nav-child ">1.1 Architecture & Build</a>
+    <a href="/docs/api-architecture" class="nav-child ">1.2 API Architecture</a>
+    <a href="/docs/self-hosting-vps" class="nav-child ">1.3 Self-hosting Skillforge OS on a VPS or Coolify</a>
+  </div>
+</div>
+<div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/apps" class="">2. Apps</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/chats" class="nav-child ">2.1 Chats</a>
+    <a href="/docs/internet-explorer" class="nav-child ">2.2 Internet Explorer</a>
+    <a href="/docs/ipod" class="nav-child ">2.3 iPod</a>
+    <a href="/docs/karaoke" class="nav-child ">2.4 Karaoke</a>
+    <a href="/docs/textedit" class="nav-child ">2.5 TextEdit</a>
+    <a href="/docs/finder" class="nav-child ">2.6 Finder</a>
+    <a href="/docs/paint" class="nav-child ">2.7 Paint</a>
+    <a href="/docs/photo-booth" class="nav-child ">2.8 Photo Booth</a>
+    <a href="/docs/terminal" class="nav-child ">2.9 Terminal</a>
+    <a href="/docs/control-panels" class="nav-child ">2.10 Control Panels</a>
+    <a href="/docs/soundboard" class="nav-child ">2.11 Soundboard</a>
+    <a href="/docs/synth" class="nav-child ">2.12 Synth</a>
+    <a href="/docs/videos" class="nav-child ">2.13 Videos</a>
+    <a href="/docs/minesweeper" class="nav-child ">2.14 Minesweeper</a>
+    <a href="/docs/virtual-pc" class="nav-child ">2.15 Virtual PC</a>
+    <a href="/docs/admin" class="nav-child ">2.16 Admin</a>
+    <a href="/docs/applet-store" class="nav-child ">2.17 Applet Store</a>
+    <a href="/docs/stickies" class="nav-child ">2.18 Stickies</a>
+    <a href="/docs/infinite-mac" class="nav-child ">2.19 Infinite Mac</a>
+    <a href="/docs/winamp" class="nav-child ">2.20 Winamp</a>
+    <a href="/docs/calendar" class="nav-child ">2.21 Calendar</a>
+    <a href="/docs/dashboard" class="nav-child ">2.22 Dashboard</a>
+    <a href="/docs/contacts" class="nav-child ">2.23 Contacts</a>
+    <a href="/docs/books" class="nav-child ">2.24 Books</a>
+    <a href="/docs/tv" class="nav-child ">2.25 TV</a>
+    <a href="/docs/maps" class="nav-child ">2.26 Maps</a>
+    <a href="/docs/calculator" class="nav-child ">2.27 Calculator</a>
+    <a href="/docs/preview" class="nav-child ">2.28 Preview</a>
+  </div>
+</div>
+<div class="nav-group expanded">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="true">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(90deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/application-framework" class="">3. Application Framework</a>
+  </button>
+  <div class="nav-children" style="display: block;">
+    <a href="/docs/window-management" class="nav-child ">3.1 Window Management</a>
+    <a href="/docs/state-management" class="nav-child ">3.2 State Management</a>
+    <a href="/docs/theme-system" class="nav-child ">3.3 Theme System</a>
+    <a href="/docs/theme-architecture" class="nav-child active">3.3.1 Theme architecture (implementation)</a>
+    <a href="/docs/hooks-architecture" class="nav-child ">3.4 Hooks Architecture</a>
+    <a href="/docs/component-architecture" class="nav-child ">3.5 Component Architecture</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/ai-system" class="">4. AI System</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/file-system" class="">5. File System</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/audio-system" class="">6. Audio System</a>
+  </div>
+</div>
+<div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/ui-components" class="">7. UI Components and Shared Systems</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/component-library" class="nav-child ">7.1 Components</a>
+    <a href="/docs/i18n" class="nav-child ">7.2 i18n & Hooks</a>
+    <a href="/docs/icon-resources" class="nav-child ">7.3 Icon Resources</a>
+  </div>
+</div>
+<div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/api-reference" class="">8. API Reference</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/chat-api" class="nav-child ">8.1 Chat API</a>
+    <a href="/docs/song-api" class="nav-child ">8.2 Song API</a>
+    <a href="/docs/media-api" class="nav-child ">8.3 Media API</a>
+    <a href="/docs/auth-api" class="nav-child ">8.4 Auth API</a>
+    <a href="/docs/rooms-api" class="nav-child ">8.5 Rooms API</a>
+    <a href="/docs/messages-api" class="nav-child ">8.6 Messages API</a>
+    <a href="/docs/presence-api" class="nav-child ">8.7 Presence API</a>
+    <a href="/docs/ai-generation-apis" class="nav-child ">8.8 AI Endpoints</a>
+    <a href="/docs/utility-apis" class="nav-child ">8.9 Utility APIs</a>
+    <a href="/docs/api-design-guide" class="nav-child ">8.10 Skillforge OS API Design Guide</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/changelog" class="">9. Changelog</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/privacy" class="">10. Privacy Policy</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/terms" class="">11. Terms of Service</a>
+  </div>
+</div>
+    </nav>
+    
+    <main class="content">
+      <article>
+        <h1>Theme architecture (implementation)</h1>
+<p>This document describes how Skillforge OS applies the four OS themes today and how to extend them without adding brittle, duplicated selectors.</p>
+<h2>Flow</h2>
+<ol><li><strong><code>useThemeStore</code></strong> persists <code>current</code> (<code>system7</code> | <code>macosx</code> | <code>xp</code> | <code>win98</code>) plus a per-theme <strong><code>darkModeByTheme</code></strong> map (localStorage key <strong><code>ryos:theme:dark</code></strong>), and calls <strong><code>applyRootThemeAttributes</code></strong> so <code>&lt;html&gt;</code> has:<ul><li><code>data-os-theme</code> — exact theme id (drives token blocks and Tailwind <code>os-theme-*</code> variants).</li><li><code>data-os-platform</code> — <code>mac</code> or <code>windows</code> (drives shared Luna + Classic rules and Tailwind <code>os-mac</code> / <code>os-windows</code> variants).</li><li><code>data-os-mac-chrome</code> — <code>aqua</code> or <code>system7</code> when <code>data-os-platform="mac"</code>; attribute removed on Windows themes (see <strong><code>getOsMacChrome()</code></strong>).</li><li><code>data-os-color-scheme</code> — <code>dark</code> only when the active theme advertises <strong><code>metadata.supportsDarkMode = true</code></strong> AND the user has dark mode enabled for that theme. Removed (and <code>color-scheme</code> reset to <code>light</code>) otherwise. Drives the <code>:root[data-os-theme="…"][data-os-color-scheme="dark"] { … }</code> token blocks in <code>themes.css</code> and Tailwind <code>os-dark</code> / <code>os-mac-aqua-dark</code> / <code>os-theme-&lt;id&gt;-dark</code> variants.</li></ul></li></ol><ol><li><strong><code><a href="https://github.com/ryokun6/ryos/blob/main/src/styles/themes.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/styles/themes.css</a></code></strong> orchestrates the theme CSS layers. The concrete CSS lives under <code>src/styles/themes/</code>:<ul><li><code>tokens.css</code> — defaults, per-theme <code>--os-*</code> token blocks, selection utility, z-index scale.</li><li><code>platform.css</code> — shared platform rules keyed by <code>data-os-platform</code>.</li><li><code>containment.css</code> — reduced-motion rules and third-party/app containment such as Webamp resets.</li><li><code>aqua.css</code> — macOS Aqua structural chrome and component rules.</li><li><code>windows.css</code> — Windows structural chrome notes/landing area; most native widget chrome still comes from <code><a href="https://github.com/ryokun6/ryos/blob/main/public/css/xp-custom.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">public/css/xp-custom.css</a></code> and <code><a href="https://github.com/ryokun6/ryos/blob/main/public/css/98-custom.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">public/css/98-custom.css</a></code>.</li><li><code>dark-aqua.css</code> — Aqua dark token and structural overrides.</li><li><code>aqua-glass.css</code> — Aqua Glass material overrides, imported after dark Aqua so glass can override both light and dark Aqua.</li></ul></li><li><strong>Legacy Windows</strong> (<code><a href="https://github.com/ryokun6/ryos/blob/main/public/css/xp-custom.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">public/css/xp-custom.css</a></code>, <code>98-custom.css</code>) is loaded only for <code>xp</code> / <code>win98</code> by <code>ensureLegacyCss</code> in the theme store.</li><li><strong>TypeScript</strong> definitions in <code>src/themes/*.ts</code> hold canonical metadata (<code>ThemeMetadata</code>); use <strong><code>getThemeMetadata</code></strong>, <strong><code>isWindowsTheme</code></strong>, <strong><code>isMacTheme</code></strong>, <strong><code>isThemeWinXp</code></strong>, <strong><code>isThemeWin98</code></strong>, <strong><code>getOsPlatform</code></strong>, <strong><code>getOsMacChrome</code></strong>, or the <strong><code>useThemeFlags()</code></strong> hook instead of ad hoc <code>current === "xp"</code> chains in new code.</li><li><strong><code>OS_NATIVE_CHROME_SKIP_CLASS</code></strong> / <strong><code>OS_SHELL_TEXT_SCALE_CLASS</code></strong> (<code><a href="https://github.com/ryokun6/ryos/blob/main/src/lib/themeChrome.ts" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/lib/themeChrome.ts</a></code>) — use <strong><code>OS_NATIVE_CHROME_SKIP_CLASS</code></strong> on an ancestor so <strong>macOS Aqua</strong> global <code>:where(…)</code> typography chains skip your subtree (alongside legacy <code>*-force-font</code> classes). Use <strong><code>OS_SHELL_TEXT_SCALE_CLASS</code></strong> on shell wrappers outside <code>WindowFrame</code> so copy picks up <strong><code>--os-typography-window</code></strong>.</li></ol>
+<p>Visual values are intentionally not stored in <code>src/themes/*.ts</code>; CSS tokens in <code><a href="https://github.com/ryokun6/ryos/blob/main/src/styles/themes/tokens.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/styles/themes/tokens.css</a></code> are the visual source of truth. The TS theme registry is for metadata, layout behavior, dark-mode support, and wallpaper defaults.</p>
+<h2>CSS layers (order of precedence / mental model)</h2>
+<table><thead><tr><th>Layer</th><th>Selector pattern</th><th>Purpose</th></tr></thead><tbody><tr><td><strong>Tokens</strong></td><td><code>:root[data-os-theme="…"] { --os-*: … }</code></td><td>Per-theme palette, fonts, radii, shadows. Single source of truth for Tailwind <code>bg-os-*</code>, <code>border-os-*</code>, etc.</td></tr><tr><td><strong>Family</strong></td><td><code>:root</code> with <code>data-os-platform</code> <code>"mac"</code> or <code>"windows"</code></td><td>Rules that are <strong>identical</strong> for all themes on that platform (for example Windows menu font forcing, Webamp range resets, Spotlight button resets).</td></tr><tr><td><strong>Structure</strong></td><td>class + theme, e.g. <code>.window-material-brushedmetal</code>, <code>.aqua-button</code></td><td>Chrome that does not fit a single variable.</td></tr><tr><td><strong>Containment</strong></td><td><code>#webamp</code>, app-specific escape hatches</td><td>Isolate third-party or special UIs from global form styling.</td></tr></tbody></table>
+<p>When you need the same declaration for <strong>XP and Win98</strong>, add it under <strong><code>data-os-platform="windows"</code></strong> (or extend tokens if it is truly per-theme). Avoid new paired <code>:root[data-os-theme="xp"], :root[data-os-theme="win98"]</code> lists.</p>
+<h2>Menu typography tokens</h2>
+<p>Radix menubar / dropdown items use: <ul><li><code>--os-font-ui</code> — always from the active theme token block.</li></ul><ul><li><code>--os-menu-item-font-size</code> — <code>11px</code> on Windows family, <code>13px</code> on <code>macosx</code>, <code>inherit</code> elsewhere.</li><li><code>--os-menu-subtrigger-font-size</code> — <code>11px</code> on Windows, <code>12px</code> on <code>macosx</code>.</li></ul></p>
+<p>Defined across <code><a href="https://github.com/ryokun6/ryos/blob/main/src/styles/themes/tokens.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/styles/themes/tokens.css</a></code> (defaults and macOS tokens) and <code><a href="https://github.com/ryokun6/ryos/blob/main/src/styles/themes/platform.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/styles/themes/platform.css</a></code> (Windows platform sizing).</p>
+<h2>macOS Aqua window vs. shell copy</h2>
+<p>Typography tokens (<code>--os-typography-*</code>) live on the theme root. <strong><code>window-body</code></strong> (always on <code>WindowFrame</code> content) uses <strong><code>--os-typography-window</code></strong>. Surfaces <strong>outside</strong> frames—desktop shell, portaled dialog innards—should not rely on removed global <code>div</code>/<code>p</code> rules. Add class <strong><code>os-shell-text-scale</code></strong> on a shell wrapper so children inherit <strong><code>--os-typography-window</code></strong> (see <code>themes.css</code>).</p>
+<h2>Tailwind variants</h2>
+<code>tailwind.config.js</code> registers:
+<ul><li><code>os-mac:</code> → <code>:root[data-os-platform="mac"] &amp;</code></li></ul><ul><li><code>os-windows:</code> → <code>:root[data-os-platform="windows"] &amp;</code></li><li><code>os-mac-aqua:</code> → <code>:root[data-os-mac-chrome="aqua"] &amp;</code> (Mac OS X only)</li><li><code>os-mac-system7:</code> → <code>:root[data-os-mac-chrome="system7"] &amp;</code></li><li><code>os-theme-system7:</code>, <code>os-theme-macosx:</code>, <code>os-theme-xp:</code>, <code>os-theme-win98:</code> → exact theme</li><li><code>os-dark:</code> → <code>:root[data-os-color-scheme="dark"] &amp;</code> (only attached when the active theme supports dark mode)</li><li><code>os-mac-aqua-dark:</code> → <code>:root[data-os-mac-chrome="aqua"][data-os-color-scheme="dark"] &amp;</code></li><li><code>os-theme-&lt;id&gt;-dark:</code> → <code>:root[data-os-theme="&lt;id&gt;"][data-os-color-scheme="dark"] &amp;</code></li></ul>
+<p>Use these for small, theme-scoped utilities instead of growing <code>cn(...)</code> theme branches.</p>
+<h2>CSS branch vs React branch</h2>
+<p>Prefer CSS branches for static visual differences: <ul><li>Tokenized colors, borders, text colors, separators, radii, and shadows should use <code>--os-*</code> tokens or Tailwind utilities like <code>bg-os-window-bg</code>, <code>border-os-window</code>, and <code>text-os-text-primary</code>.</li></ul><ul><li>Small theme-scoped states should use root-attribute variants such as <code>os-windows:</code>, <code>os-mac-aqua:</code>, <code>os-mac-system7:</code>, and <code>os-mac-aqua-dark:</code>.</li><li>Shared surfaces should use helpers such as <code>osCardClassName</code>, <code>osDrawerSurfaceClassName</code>, <code>osToolbarSurfaceClassName</code>, <code>osAppSidebarSurfaceClassName</code>, <code>osSeparatorBorderClassName</code>, <code>osSubtleIconButtonClassName</code>, and <code>windowsBevelClassName</code>.</li></ul></p>
+<p>Use React branches only when the DOM structure, event behavior, asset choice, layout math, or app behavior changes. Examples: choosing Dock vs taskbar layout, using a native Windows tab <code>&lt;menu&gt;</code>, picking a theme-specific icon path, or changing window-control placement.</p>
+<h2>Dark mode</h2>
+<ul><li>Today only <code>macosx</code> carries dark tokens (<code>metadata.supportsDarkMode: true</code>); the other themes opt out and the toggle is hidden in <strong>Control Panels → Appearance</strong>.</li></ul><ul><li>Dark CSS lives in <code><a href="https://github.com/ryokun6/ryos/blob/main/src/styles/themes/dark-aqua.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/styles/themes/dark-aqua.css</a></code> so removing the attribute is a complete revert. Token overrides plus chrome that bakes in light hues (menubar gloss, brushed metal, drawer, traffic lights, Spotlight pinstripe) are all in that layer — see comments there before adding new dark surfaces.</li><li>The user preference is per-theme (<code>darkModeByTheme</code>) so flipping back to a dark-supported theme remembers the previous choice. <code>useThemeFlags()</code> exposes <code>supportsDarkMode</code> and <code>isDarkMode</code> for component branches that genuinely need to differ from the token-driven path.</li><li>Settings sync ships the dark-mode map as part of the existing <code>theme</code> section payload (<code>{ theme, darkMode }</code> for new clients; old clients still get a plain string).</li></ul>
+<h2>HTML defaults</h2>
+<code>index.html</code> loads <code>/theme-bootstrap-config.js</code> before the inline first-paint script. That static config mirrors the TS registry fields needed before React starts: default theme, platform bucket, Mac chrome bucket, and dark-mode support. Keep it in sync with <code><a href="https://github.com/ryokun6/ryos/blob/main/src/themes/bootstrapConfig.ts" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/themes/bootstrapConfig.ts</a></code>; <code><a href="https://github.com/ryokun6/ryos/blob/main/tests/test-theme-bootstrap-config.test.ts" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">tests/test-theme-bootstrap-config.test.ts</a></code> verifies parity.
+<h2>Adding a theme</h2>
+<ol><li>Add a metadata-only theme object in <code>src/themes/&lt;id&gt;.ts</code> and register it in <code><a href="https://github.com/ryokun6/ryos/blob/main/src/themes/index.ts" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/themes/index.ts</a></code>.</li></ol><ol><li>Add light CSS tokens in <code><a href="https://github.com/ryokun6/ryos/blob/main/src/styles/themes/tokens.css" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">src/styles/themes/tokens.css</a></code>; add dark tokens only if <code>metadata.supportsDarkMode</code> is true.</li><li>Add structural CSS in the appropriate layer (<code>aqua.css</code>, <code>windows.css</code>, or a new family file) and prefer platform/chrome attributes over paired exact-theme selectors.</li><li>Update <code><a href="https://github.com/ryokun6/ryos/blob/main/public/theme-bootstrap-config.js" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">public/theme-bootstrap-config.js</a></code> so first paint knows the theme id, platform, Mac chrome, and dark support.</li><li>Add or update themed assets/icons only where the theme needs different files.</li><li>Run <code>bun test <a href="https://github.com/ryokun6/ryos/blob/main/tests/test-theme-bootstrap-config.test.ts" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">tests/test-theme-bootstrap-config.test.ts</a></code> and a preview-build visual comparison across supported themes.</li></ol>
+<h2>Migration notes</h2>
+<ul><li>Prefer <strong><code>useThemeFlags()</code></strong> (<code>isWindowsTheme</code>, <code>isWinXp</code>, <code>isWin98</code>, <code>isMacOSTheme</code>, <code>isAquaMenuChrome</code>, <code>macChrome</code>, <code>isMacAquaChrome</code>, …) over duplicating OR-of-theme-id checks in components. Most dialogs, shared surfaces (<code>LinkPreview</code>, <code>HtmlPreview</code>, <code>AppDrawer</code>, fullscreen controls), AirDrop, applet store feeds, and app hooks now read theme through this hook.</li></ul><ul><li><strong>Outside React</strong> (sync jobs, tool handlers): use <strong><code>useThemeStore.getState().current</code></strong> or <strong><code>isWindowsTheme(id)</code></strong> / <strong><code>isThemeWinXp</code></strong>. For <strong><code>useThemeStore.subscribe</code></strong>, keep the subscription on the store (e.g. cloud sync marking settings dirty on theme change).</li><li><strong><code>isAquaMenuChrome</code></strong> means “Mac OS X Aqua menus” only; System 7 uses classic metrics shared with Windows for some menu padding patterns.</li><li>User-facing overview remains in <a href="/docs/theme-system">Theme System</a>; this file is for implementers.</li></ul>
+      </article>
+      
+      <nav class="nav">
+        <a href="/docs/theme-system">← Theme System</a>
+        <a href="/docs/hooks-architecture">Hooks Architecture →</a>
+      </nav>
+      
+    </main>
+  </div>
+  
+  <script>
+    function toggleNavGroup(button) {
+      const group = button.closest('.nav-group');
+      const children = group.querySelector('.nav-children');
+      const svg = button.querySelector('svg');
+      const isExpanded = group.classList.contains('expanded');
+      
+      if (isExpanded) {
+        group.classList.remove('expanded');
+        children.style.display = 'none';
+        svg.style.transform = 'rotate(0deg)';
+        button.setAttribute('aria-expanded', 'false');
+      } else {
+        group.classList.add('expanded');
+        children.style.display = 'block';
+        svg.style.transform = 'rotate(90deg)';
+        button.setAttribute('aria-expanded', 'true');
+      }
+    }
+    
+    document.addEventListener('click', (e) => {
+      const sidebar = document.querySelector('.sidebar');
+      const menuBtn = document.querySelector('.menu-btn');
+      const clickedMenuBtn = menuBtn && menuBtn.contains(e.target);
+      if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !clickedMenuBtn) {
+        sidebar.classList.remove('open');
+      }
+    });
+  </script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    // Stash each diagram's source so we can re-render with a fresh palette when
+    // the color scheme is toggled live (mermaid bakes colors into the SVG).
+    var diagrams = Array.prototype.slice.call(document.querySelectorAll('pre.mermaid'));
+    diagrams.forEach(function (el) {
+      if (el.getAttribute('data-mermaid-src') === null) {
+        el.setAttribute('data-mermaid-src', el.textContent);
+      }
+    });
+    function themeVariables(dark) {
+      return dark
+        ? {
+            fontFamily: '"Geneva", system-ui, sans-serif',
+            fontSize: '10px',
+            primaryColor: '#2c2c30',
+            primaryBorderColor: 'rgba(255,255,255,0.22)',
+            primaryTextColor: '#ededf0',
+            lineColor: '#9a9aa2',
+            secondaryColor: '#27272b',
+            tertiaryColor: '#1e1e21'
+          }
+        : {
+            fontFamily: '"Geneva", system-ui, sans-serif',
+            fontSize: '10px',
+            primaryColor: '#f0f0f0',
+            primaryBorderColor: '#ccc',
+            primaryTextColor: '#000',
+            lineColor: '#666',
+            secondaryColor: '#f8f8f8',
+            tertiaryColor: '#fff'
+          };
+    }
+    async function renderMermaid() {
+      if (diagrams.length === 0) return;
+      var dark = !!window.__ryosDocsDark;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        securityLevel: 'loose',
+        themeVariables: themeVariables(dark),
+        flowchart: { curve: 'basis', padding: 8, nodeSpacing: 30, rankSpacing: 30 },
+        sequence: { actorFontSize: 10, messageFontSize: 10, noteFontSize: 10 }
+      });
+      diagrams.forEach(function (el) {
+        var src = el.getAttribute('data-mermaid-src');
+        if (src !== null) {
+          el.removeAttribute('data-processed');
+          // Restore the raw diagram definition as text (not innerHTML): mermaid
+          // reads the source from textContent, and the definition contains
+          // characters like ">" / "-->" that must not be parsed as HTML.
+          el.textContent = src;
+        }
+      });
+      try {
+        await mermaid.run({ nodes: diagrams });
+      } catch (e) {
+        /* ignore mermaid parse/render errors */
+      }
+    }
+    window.__ryosDocsRenderMermaid = renderMermaid;
+    renderMermaid();
+  </script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en" data-os-theme="system7" data-os-platform="mac" data-os-mac-chrome="system7" style="background-color: #000">
+  <head>
+    <script>
+      // crypto.randomUUID is only available in secure contexts (HTTPS/localhost).
+      // The demo is served over plain HTTP on a bare IP, so provide a safe
+      // fallback before any module executes.
+      (function () {
+        if (
+          typeof crypto !== "undefined" &&
+          typeof crypto.randomUUID === "function"
+        ) {
+          return;
+        }
+        var polyfill = function () {
+          try {
+            if (
+              typeof crypto !== "undefined" &&
+              typeof crypto.getRandomValues === "function"
+            ) {
+              var b = crypto.getRandomValues(new Uint8Array(16));
+              b[6] = (b[6] & 0x0f) | 0x40;
+              b[8] = (b[8] & 0x3f) | 0x80;
+              return (
+                hex(b, 0, 4) + "-" + hex(b, 4, 2) + "-" + hex(b, 6, 2) + "-" + hex(b, 8, 2) + "-" + hex(b, 10, 6)
+              );
+            }
+          } catch (e) {}
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+            var r = (Math.random() * 16) | 0;
+            var v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+        };
+        function hex(bytes, start, len) {
+          var out = "";
+          for (var i = start; i < start + len; i++) {
+            out += (bytes[i] < 16 ? "0" : "") + bytes[i].toString(16);
+          }
+          return out;
+        }
+        Object.defineProperty(crypto, "randomUUID", {
+          value: polyfill,
+          writable: true,
+          configurable: true,
+        });
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Skillforge OS" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="An AI OS experience, made with Cursor"
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta http-equiv="Permissions-Policy" content="camera=(self)" />
+    <!-- Disable pull-to-refresh and overscroll behaviors on mobile -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
+
+    <!-- Cache control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+
+    <!-- CJK content can appear independently of the UI locale (lyrics, files,
+         documents), so start its non-blocking font stylesheets at boot. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Noto+Serif+KR:wght@400;700&family=Nanum+Gothic:wght@700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <link href="https://cdn.jsdelivr.net/npm/chiron-go-round-tc-webfont@1.0.11/css/vf.css" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Noto+Serif+KR:wght@400;700&family=Nanum+Gothic:wght@700&display=swap" rel="stylesheet" />
+      <link href="https://cdn.jsdelivr.net/npm/chiron-go-round-tc-webfont@1.0.11/css/vf.css" rel="stylesheet" />
+    </noscript>
+
+    <!-- Preload critical JSON data -->
+    <link rel="preload" href="/data/filesystem.json" as="fetch" type="application/json" crossorigin="use-credentials" />
+    <link rel="preload" href="/data/applets.json" as="fetch" type="application/json" crossorigin="use-credentials" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://os.skillforge.os/" />
+    <meta property="og:title" content="Skillforge OS" />
+    <meta
+      property="og:description"
+      content="An AI OS experience, made with Cursor"
+    />
+    <meta property="og:image" content="https://os.skillforge.os/icons/mac-512.png" />
+    <meta property="og:site_name" content="Skillforge OS" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Skillforge OS" />
+    <meta
+      name="twitter:description"
+      content="An AI OS experience, made with Cursor"
+    />
+    <meta name="twitter:image" content="https://os.skillforge.os/icons/mac-512.png" />
+
+    <title>Skillforge OS</title>
+    
+    <!-- Stale bundle detection: reload if cached index.html references missing JS bundles -->
+    <script>
+      (function() {
+        var reloadKey = 'ryos:stale-reload';
+        var legacyReloadKey = 'ryos-stale-reload';
+        try {
+          var canonicalReload = sessionStorage.getItem(reloadKey);
+          var legacyReload = sessionStorage.getItem(legacyReloadKey);
+          if (canonicalReload === null && legacyReload !== null) {
+            sessionStorage.setItem(reloadKey, legacyReload);
+          }
+          if (legacyReload !== null) sessionStorage.removeItem(legacyReloadKey);
+        } catch (e) { /* sessionStorage may throw */ }
+
+        // After a successful recovery redirect (?_cb= present), clear the
+        // cooldown flag so listeners below get a fresh attempt.  Without
+        // this the 10 s cooldown from the *previous* page load would cause
+        // the IIFE to bail and never attach error listeners — leaving the
+        // page defenceless if a different chunk still 404s.
+        try {
+          if (window.location.search.indexOf('_cb=') !== -1) {
+            sessionStorage.removeItem(reloadKey);
+            sessionStorage.removeItem(legacyReloadKey);
+          }
+        } catch (e) { /* sessionStorage may throw */ }
+
+        // Guard to prevent multiple reload attempts on the same page load
+        var isReloading = false;
+
+        // ---- error listeners (always attached) ----
+
+        // <script> tag load errors (capture phase)
+        window.addEventListener('error', function(event) {
+          if (isReloading) return;
+          var target = event.target || event.srcElement;
+          if (target && target.tagName === 'SCRIPT') {
+            var src = target.src || '';
+            if (src.indexOf('/assets/') !== -1 && src.indexOf('.js') !== -1) {
+              console.error('[Skillforge OS] Bundle failed to load:', src);
+              triggerStaleReload('Script tag error: ' + src);
+            }
+          }
+        }, true);
+
+        // Dynamic import / module failures (unhandled rejections)
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isReloading) return;
+          var reason = event.reason;
+          if (!reason) return;
+
+          var message = reason.message || String(reason);
+          var stack = reason.stack || '';
+
+          var isModuleError =
+            message.indexOf('dynamically imported module') !== -1 ||
+            message.indexOf('Loading module') !== -1 ||
+            message.indexOf('module script failed') !== -1 ||
+            message.indexOf('Unable to preload CSS') !== -1;
+
+          var isAssetError =
+            (message.indexOf('/assets/') !== -1 && message.indexOf('.js') !== -1) ||
+            (stack.indexOf('/assets/') !== -1 && stack.indexOf('.js') !== -1);
+
+          if (isModuleError || isAssetError) {
+            console.error('[Skillforge OS] Module import failed:', message);
+            triggerStaleReload('Module import error: ' + message);
+          }
+        });
+
+        // ---- recovery flow ----
+
+        // navigator.onLine can be true while the network is unusable (Wi-Fi
+        // without internet, server down). Confirm the server is reachable
+        // before nuking caches + the service worker — doing so while
+        // disconnected would permanently break offline use.
+        function probeServerReachable(callback) {
+          var settled = false;
+          function finish(result) {
+            if (settled) return;
+            settled = true;
+            callback(result);
+          }
+          setTimeout(function() { finish(false); }, 5000);
+          try {
+            // Any response (even an error status) proves reachability. The
+            // unique query param stops the service worker's cached
+            // version.json from answering the probe while offline.
+            fetch('/version.json?_probe=' + Date.now(), { cache: 'no-store' })
+              .then(function() { finish(true); }, function() { finish(false); });
+          } catch (e) {
+            finish(false);
+          }
+        }
+
+        function triggerStaleReload(reason) {
+          if (isReloading) return;
+
+          if (navigator.onLine === false) {
+            console.warn('[Skillforge OS] Offline - skipping stale-bundle recovery');
+            return;
+          }
+
+          // Counter-based loop guard (shared with prefetch.ts and main.tsx)
+          var countKey = 'ryos:reload-count';
+          var windowKey = 'ryos:reload-window-start';
+          try {
+            var now = Date.now();
+            var count = parseInt(sessionStorage.getItem(countKey) || '0', 10);
+            var wStart = parseInt(sessionStorage.getItem(windowKey) || '0', 10);
+            if (wStart && now - wStart <= 60000 && count >= 3) {
+              console.warn('[Skillforge OS] Too many reloads (' + count + '), stopping to prevent loop');
+              return;
+            }
+            if (!wStart || now - wStart > 60000) {
+              sessionStorage.setItem(windowKey, String(now));
+              sessionStorage.setItem(countKey, '1');
+            } else {
+              sessionStorage.setItem(countKey, String(count + 1));
+            }
+          } catch (e) { /* sessionStorage may throw */ }
+
+          // Cooldown check — prevent rapid-fire reloads (10 s window)
+          var lastReload = sessionStorage.getItem(reloadKey);
+          if (lastReload && (Date.now() - parseInt(lastReload, 10)) < 10000) {
+            console.warn('[Skillforge OS] Recently reloaded for stale bundle, skipping to prevent loop');
+            return;
+          }
+
+          isReloading = true;
+          probeServerReachable(function(reachable) {
+            if (!reachable) {
+              isReloading = false;
+              console.warn('[Skillforge OS] Server unreachable - skipping stale-bundle recovery');
+              return;
+            }
+
+            console.warn('[Skillforge OS] Stale bundle detected, clearing caches and reloading...', reason);
+            try {
+              sessionStorage.setItem(reloadKey, String(Date.now()));
+            } catch (e) { /* sessionStorage may throw */ }
+
+            if (window.caches) {
+              caches.keys().then(function(names) {
+                return Promise.all(names.map(function(name) {
+                  return caches.delete(name);
+                }));
+              }).then(function() {
+                console.log('[Skillforge OS] Caches cleared');
+                doReload();
+              }).catch(function() {
+                doReload();
+              });
+            } else {
+              doReload();
+            }
+          });
+        }
+
+        function doReload() {
+          if (navigator.serviceWorker) {
+            navigator.serviceWorker.getRegistration().then(function(reg) {
+              if (reg) {
+                reg.unregister().then(function() {
+                  console.log('[Skillforge OS] Service worker unregistered');
+                  forceReload();
+                }).catch(function() {
+                  forceReload();
+                });
+              } else {
+                forceReload();
+              }
+            }).catch(function() {
+              forceReload();
+            });
+          } else {
+            forceReload();
+          }
+        }
+
+        function forceReload() {
+          var url = new URL(window.location.href);
+          url.searchParams.set('_cb', Date.now());
+          window.location.replace(url.toString());
+        }
+      })();
+    </script>
+  </head>
+  <body style="background-color: #000; margin: 0">
+    <script src="/theme-bootstrap-config.js"></script>
+    <script>
+      (function () {
+        try {
+          var rawTheme = localStorage.getItem("ryos:theme");
+          var legacyTheme = localStorage.getItem("os_theme");
+          if (!rawTheme && legacyTheme) {
+            rawTheme = legacyTheme;
+            localStorage.setItem("ryos:theme", legacyTheme);
+          }
+          if (legacyTheme !== null) localStorage.removeItem("os_theme");
+          var config = window.__RYOS_THEME_BOOTSTRAP__ || {
+            defaultTheme: "system7",
+            defaultAquaMaterial: "glass",
+            themes: {
+              system7: { platform: "mac", macChrome: "system7", supportsDarkMode: false },
+              macosx: { platform: "mac", macChrome: "aqua", supportsDarkMode: true },
+              xp: { platform: "windows", macChrome: null, supportsDarkMode: false },
+              win98: { platform: "windows", macChrome: null, supportsDarkMode: false },
+            },
+          };
+          var themeConfig = rawTheme && config.themes && config.themes[rawTheme];
+          var theme = themeConfig ? rawTheme : config.defaultTheme || "system7";
+          themeConfig = config.themes && config.themes[theme];
+          var root = document.documentElement;
+          root.dataset.osTheme = theme;
+          // Mirror the platform/chrome attributes the React store will set later so first paint matches.
+          var platform = themeConfig && themeConfig.platform ? themeConfig.platform : "mac";
+          root.dataset.osPlatform = platform;
+          if (themeConfig && themeConfig.macChrome) {
+            root.dataset.osMacChrome = themeConfig.macChrome;
+          } else {
+            delete root.dataset.osMacChrome;
+          }
+          // Aqua material is a separate preference from the OS theme. Preserve
+          // explicit saved choices; default missing/invalid storage to Glass.
+          var rawAquaMaterial = localStorage.getItem("ryos:theme:aqua-material");
+          var aquaMaterial =
+            rawAquaMaterial === "classic" || rawAquaMaterial === "glass"
+              ? rawAquaMaterial
+              : config.defaultAquaMaterial || "glass";
+          if (theme === "macosx" && aquaMaterial === "glass") {
+            root.dataset.osAquaMaterial = "glass";
+          } else {
+            delete root.dataset.osAquaMaterial;
+          }
+          // Dark mode is per-theme, only honored when the theme advertises support.
+          // Match useThemeStore#effectiveDarkFor (string prefs + legacy booleans + system).
+          var supportsDark = !!(themeConfig && themeConfig.supportsDarkMode);
+          var systemDark = false;
+          try {
+            systemDark =
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches;
+          } catch (e0) {}
+
+          var isDarkBoot = false;
+          if (supportsDark) {
+            try {
+              var rawDark = localStorage.getItem("ryos:theme:dark");
+              var pref = null;
+              if (rawDark) {
+                var parsedDark = JSON.parse(rawDark);
+                if (
+                  parsedDark &&
+                  typeof parsedDark === "object" &&
+                  parsedDark[theme] !== undefined &&
+                  parsedDark[theme] !== null
+                ) {
+                  pref = parsedDark[theme];
+                }
+              }
+              if (pref === true || pref === "dark") isDarkBoot = true;
+              else if (pref === false || pref === "light") isDarkBoot = false;
+              else isDarkBoot = systemDark;
+            } catch (e1) {}
+
+            if (isDarkBoot) {
+              root.dataset.osColorScheme = "dark";
+              root.style.colorScheme = "dark";
+              root.classList.add("dark");
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      (function () {
+        var theme = document.documentElement.dataset.osTheme || "system7";
+        var fontsByTheme = {
+          macosx: [
+            "/fonts/LucidaGrande.woff2",
+            "/fonts/AquaKana.woff2",
+          ],
+          system7: [
+            "/fonts/ChicagoKare-Regular.woff2",
+            "/fonts/geneva-12.woff2",
+            "/fonts/fusion-pixel-12px-proportional-ja.woff2",
+          ],
+          xp: [
+            "/fonts/ms_sans_serif.woff2",
+            "/fonts/ms_sans_serif_bold.woff2",
+            "/fonts/fusion-pixel-12px-proportional-ja.woff2",
+          ],
+          win98: [
+            "/fonts/ms_sans_serif.woff2",
+            "/fonts/ms_sans_serif_bold.woff2",
+            "/fonts/fusion-pixel-12px-proportional-ja.woff2",
+          ],
+        };
+        (fontsByTheme[theme] || fontsByTheme.system7).forEach(function (href) {
+          var link = document.createElement("link");
+          link.rel = "preload";
+          link.as = "font";
+          link.type = "font/woff2";
+          link.crossOrigin = "anonymous";
+          link.href = href;
+          document.head.appendChild(link);
+        });
+      })();
+    </script>
+    <div id="root"></div>
+    <script src="/app-config.js"></script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

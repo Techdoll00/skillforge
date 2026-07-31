@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Self-hosting Skillforge OS on a VPS or Coolify - Skillforge OS Docs</title>
+  <link rel="icon" href="/icons/mac-192.png">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    // Resolve dark mode before paint to avoid a flash. Priority:
+    //   1. Skillforge OS parent window color scheme (when embedded same-origin, e.g. the
+    //      Internet Explorer app) — follows the OS dark-mode toggle live.
+    //   2. The browser's prefers-color-scheme (standalone docs viewing).
+    (function () {
+      var root = document.documentElement;
+      function parentScheme() {
+        try {
+          if (window.parent && window.parent !== window) {
+            var pdoc = window.parent.document;
+            if (pdoc && pdoc.documentElement) {
+              return pdoc.documentElement.getAttribute("data-os-color-scheme");
+            }
+          }
+        } catch (e) {
+          // Cross-origin parent — not readable, fall back to media query.
+        }
+        return undefined;
+      }
+      function resolveDark() {
+        var scheme = parentScheme();
+        if (scheme === "dark") return true;
+        if (scheme === "light" || scheme === "") return false;
+        // A null attribute means the parent simply isn't in dark mode; when
+        // embedded that still implies light. Only fall back to the media query
+        // when standalone.
+        if (scheme === null && window.parent && window.parent !== window) {
+          try {
+            // Confirm the parent is actually readable (same-origin) before trusting null.
+            void window.parent.document.documentElement;
+            return false;
+          } catch (e) {
+            /* unreadable -> standalone-style fallback */
+          }
+        }
+        return !!(
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+        );
+      }
+      function apply() {
+        var dark = resolveDark();
+        root.setAttribute("data-color-scheme", dark ? "dark" : "light");
+        window.__ryosDocsDark = dark;
+        // Mermaid bakes its palette into the SVG at render time, so re-render
+        // any diagrams when the scheme changes after the initial paint.
+        if (typeof window.__ryosDocsRenderMermaid === "function") {
+          window.__ryosDocsRenderMermaid();
+        }
+      }
+      apply();
+      window.__ryosDocsApplyScheme = apply;
+      try {
+        if (window.matchMedia) {
+          window
+            .matchMedia("(prefers-color-scheme: dark)")
+            .addEventListener("change", apply);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+      // Live-follow the Skillforge OS dark-mode toggle when embedded same-origin.
+      try {
+        if (window.parent && window.parent !== window) {
+          var pdoc = window.parent.document;
+          if (pdoc && pdoc.documentElement && window.MutationObserver) {
+            new MutationObserver(apply).observe(pdoc.documentElement, {
+              attributes: true,
+              attributeFilter: ["data-os-color-scheme"],
+            });
+          }
+        }
+      } catch (e) {
+        /* cross-origin parent — nothing to observe */
+      }
+    })();
+  </script>
+  <style>
+    @font-face { font-family: "Geneva"; src: url("/fonts/geneva-12.woff2") format("woff2"); }
+    @font-face { font-family: "Monaco"; src: url("/fonts/monacottf.woff2") format("woff2"); }
+
+    /* Color tokens — light defaults. Dark overrides live below, keyed on the
+       resolved data-color-scheme attribute (set by the head script) with a
+       prefers-color-scheme fallback for standalone viewing. */
+    :root {
+      --doc-bg: #fff;
+      --doc-text: #000;
+      --doc-text-secondary: #333;
+      --doc-text-tertiary: #666;
+      --doc-text-faint: #999;
+      --doc-link: #00f;
+      --doc-border: #ccc;
+      --doc-border-light: #ddd;
+      --doc-surface: #f0f0f0;
+      --doc-surface-alt: #f8f8f8;
+      --doc-hover-bg: #f0f0f0;
+      --doc-accent-bg: #000;
+      --doc-accent-text: #fff;
+      --doc-mermaid-node: #f8f8f8;
+      --doc-mermaid-stroke: #ccc;
+      --doc-mermaid-edge-label: #fff;
+      color-scheme: light;
+    }
+    :root[data-color-scheme="dark"] {
+      --doc-bg: #1e1e21;
+      --doc-text: #ededf0;
+      --doc-text-secondary: #c4c4ca;
+      --doc-text-tertiary: #9a9aa2;
+      --doc-text-faint: #6e6e74;
+      --doc-link: #6ba3ff;
+      --doc-border: rgba(255, 255, 255, 0.16);
+      --doc-border-light: rgba(255, 255, 255, 0.12);
+      --doc-surface: #2c2c30;
+      --doc-surface-alt: #27272b;
+      --doc-hover-bg: rgba(255, 255, 255, 0.08);
+      --doc-accent-bg: #ededf0;
+      --doc-accent-text: #1e1e21;
+      --doc-mermaid-node: #2c2c30;
+      --doc-mermaid-stroke: rgba(255, 255, 255, 0.22);
+      --doc-mermaid-edge-label: #1e1e21;
+      color-scheme: dark;
+    }
+    /* Standalone fallback: honor the OS preference unless the page was explicitly
+       resolved to light (data-color-scheme="light" wins over this block). */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-color-scheme="light"]) {
+        --doc-bg: #1e1e21;
+        --doc-text: #ededf0;
+        --doc-text-secondary: #c4c4ca;
+        --doc-text-tertiary: #9a9aa2;
+        --doc-text-faint: #6e6e74;
+        --doc-link: #6ba3ff;
+        --doc-border: rgba(255, 255, 255, 0.16);
+        --doc-border-light: rgba(255, 255, 255, 0.12);
+        --doc-surface: #2c2c30;
+        --doc-surface-alt: #27272b;
+        --doc-hover-bg: rgba(255, 255, 255, 0.08);
+        --doc-accent-bg: #ededf0;
+        --doc-accent-text: #1e1e21;
+        --doc-mermaid-node: #2c2c30;
+        --doc-mermaid-stroke: rgba(255, 255, 255, 0.22);
+        --doc-mermaid-edge-label: #1e1e21;
+        color-scheme: dark;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Geneva", system-ui, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: var(--doc-bg);
+      color: var(--doc-text);
+    }
+    a { color: var(--doc-link); }
+    a:hover { text-decoration: none; }
+    code, pre { font-family: "Monaco", monospace; font-size: 11px; }
+    code { background: var(--doc-surface); padding: 1px 4px; }
+    pre { background: var(--doc-surface-alt); border: 1px solid var(--doc-border-light); padding: 12px; overflow-x: auto; margin: 12px 0; }
+    pre code { background: none; padding: 0; }
+    
+    /* Layout */
+    .header {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--doc-bg); border-bottom: 1px solid var(--doc-border);
+      padding: 0 16px; height: 40px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .header-left img { width: 20px; height: 20px; display: block; }
+    .header-left span { font-weight: bold; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .header-right a { text-decoration: none; color: var(--doc-text-secondary); }
+    .header-right a:hover { color: var(--doc-text); }
+    .header-right .github { display: flex; align-items: center; gap: 4px; }
+    .header-right .launch { background: var(--doc-accent-bg); color: var(--doc-accent-text); padding: 4px 12px; }
+    
+    .container { display: flex; max-width: 1100px; margin: 0 auto; }
+    
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      border-right: 1px solid var(--doc-border);
+      padding: 12px;
+      position: sticky; top: 40px;
+      height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    .sidebar a {
+      display: block; padding: 4px 8px; margin: 2px 0;
+      text-decoration: none; color: var(--doc-text-secondary);
+      font-size: 11px;
+    }
+    .sidebar a:hover { background: var(--doc-hover-bg); }
+    .sidebar a.active { background: var(--doc-accent-bg); color: var(--doc-accent-text); }
+    
+    /* Tree hierarchy styles */
+    .nav-group { margin: 4px 0; }
+    .nav-spacer { width: 8px; flex-shrink: 0; } /* Same width as toggle arrow */
+    .nav-no-toggle { cursor: default; }
+    .nav-toggle {
+      display: flex; align-items: center; gap: 4px;
+      background: none; border: none; padding: 0; width: 100%;
+      cursor: pointer; text-align: left; font: inherit; color: inherit;
+    }
+    .nav-toggle:hover { background: var(--doc-hover-bg); }
+    .nav-toggle svg { flex-shrink: 0; opacity: 0.6; transition: transform 0.2s; }
+    .nav-toggle a { flex: 1; padding: 4px 8px; margin: 0; pointer-events: auto; font-size: 11px; }
+    .nav-children { margin-left: 12px; overflow: hidden; transition: height 0.2s ease-out; }
+    .nav-child { padding-left: 8px !important; font-size: 10px !important; color: var(--doc-text-tertiary) !important; }
+    .nav-child:hover { color: var(--doc-text) !important; }
+    .nav-child.active { color: var(--doc-accent-text) !important; }
+    
+    .content { flex: 1; padding: 24px 32px; min-width: 0; }
+    
+    /* Typography */
+    h1 { font-size: 18px; border-bottom: 1px solid var(--doc-border); padding-bottom: 8px; margin-bottom: 16px; }
+    hr { border: none; border-top: 1px solid var(--doc-border); margin: 16px 0; }
+    h2 { font-size: 14px; margin: 24px 0 12px; }
+    h3 { font-size: 12px; margin: 16px 0 8px; }
+    h4 { font-size: 11px; margin: 12px 0 6px; font-weight: bold; }
+    p { margin: 8px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    li { margin: 4px 0; }
+    
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11px; }
+    th, td { border: 1px solid var(--doc-border); padding: 6px 8px; text-align: left; }
+    th { background: var(--doc-surface); font-weight: bold; }
+    
+    /* Mermaid diagrams */
+    pre.mermaid { background: none; border: none; padding: 0; text-align: center; margin: 16px 0; }
+    .mermaid svg { max-width: 100%; height: auto; font-family: "Geneva", system-ui, sans-serif !important; }
+    .mermaid .node rect, .mermaid .node circle, .mermaid .node polygon { fill: var(--doc-mermaid-node) !important; stroke: var(--doc-mermaid-stroke) !important; }
+    .mermaid .edgeLabel { background: var(--doc-mermaid-edge-label) !important; font-size: 10px !important; }
+    .mermaid .label { font-size: 10px !important; }
+    .mermaid .nodeLabel { font-size: 10px !important; }
+    .mermaid .cluster-label { font-size: 10px !important; }
+    .mermaid .messageText { font-size: 10px !important; }
+    .mermaid .actor { font-size: 10px !important; }
+    .mermaid .labelText { font-size: 10px !important; }
+    
+    /* Collapsible details */
+    details { margin: 8px 0; }
+    details summary { 
+      cursor: pointer; 
+      color: var(--doc-text-tertiary); 
+      font-size: 11px;
+      padding: 4px 0;
+      user-select: none;
+    }
+    details summary:hover { color: var(--doc-text); }
+    details[open] summary { margin-bottom: 8px; }
+    details ul { margin-top: 0; }
+    
+    /* Navigation */
+    .nav { display: flex; justify-content: space-between; margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--doc-border); }
+    .nav a { text-decoration: none; color: var(--doc-text-secondary); }
+    .nav a:hover { color: var(--doc-text); }
+    
+    /* Mobile menu button */
+    .menu-btn { 
+      display: none; 
+      background: transparent; 
+      border: 0; 
+      padding: 4px; 
+      cursor: pointer; 
+      line-height: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 0;
+      color: inherit;
+    }
+    .menu-btn svg { display: block; width: 18px; height: 18px; pointer-events: none; }
+    @media screen and (max-width: 768px) {
+      .menu-btn { 
+        display: -webkit-flex !important;
+        display: flex !important; 
+        -webkit-align-items: center;
+        align-items: center; 
+        -webkit-justify-content: center;
+        justify-content: center;
+      }
+      .header-left img { display: none !important; }
+      .sidebar { 
+        position: fixed; left: -240px; top: 40px; 
+        width: 240px; height: calc(100vh - 40px);
+        background: var(--doc-bg); z-index: 20;
+        transition: left 0.2s;
+      }
+      .sidebar.open { left: 0; box-shadow: 2px 0 8px rgba(0,0,0,0.1); }
+      .content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <button class="menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit">
+        <img src="/icons/mac-192.png" alt="Skillforge OS" width="20" height="20">
+        <span>Skillforge OS</span>
+      </a>
+      <span style="color:var(--doc-text-faint)">/</span>
+      <span style="color:var(--doc-text-tertiary)">Docs</span>
+    </div>
+    <div class="header-right">
+      <a href="https://github.com/ryokun6/ryos" target="_blank" class="github">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a href="/" class="launch">Launch</a>
+    </div>
+  </header>
+  
+  <div class="container">
+    <nav class="sidebar">
+      <div class="nav-group expanded">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="true">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(90deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/overview" class="">1. Overview</a>
+  </button>
+  <div class="nav-children" style="display: block;">
+    <a href="/docs/architecture" class="nav-child ">1.1 Architecture & Build</a>
+    <a href="/docs/api-architecture" class="nav-child ">1.2 API Architecture</a>
+    <a href="/docs/self-hosting-vps" class="nav-child active">1.3 Self-hosting Skillforge OS on a VPS or Coolify</a>
+  </div>
+</div>
+<div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/apps" class="">2. Apps</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/chats" class="nav-child ">2.1 Chats</a>
+    <a href="/docs/internet-explorer" class="nav-child ">2.2 Internet Explorer</a>
+    <a href="/docs/ipod" class="nav-child ">2.3 iPod</a>
+    <a href="/docs/karaoke" class="nav-child ">2.4 Karaoke</a>
+    <a href="/docs/textedit" class="nav-child ">2.5 TextEdit</a>
+    <a href="/docs/finder" class="nav-child ">2.6 Finder</a>
+    <a href="/docs/paint" class="nav-child ">2.7 Paint</a>
+    <a href="/docs/photo-booth" class="nav-child ">2.8 Photo Booth</a>
+    <a href="/docs/terminal" class="nav-child ">2.9 Terminal</a>
+    <a href="/docs/control-panels" class="nav-child ">2.10 Control Panels</a>
+    <a href="/docs/soundboard" class="nav-child ">2.11 Soundboard</a>
+    <a href="/docs/synth" class="nav-child ">2.12 Synth</a>
+    <a href="/docs/videos" class="nav-child ">2.13 Videos</a>
+    <a href="/docs/minesweeper" class="nav-child ">2.14 Minesweeper</a>
+    <a href="/docs/virtual-pc" class="nav-child ">2.15 Virtual PC</a>
+    <a href="/docs/admin" class="nav-child ">2.16 Admin</a>
+    <a href="/docs/applet-store" class="nav-child ">2.17 Applet Store</a>
+    <a href="/docs/stickies" class="nav-child ">2.18 Stickies</a>
+    <a href="/docs/infinite-mac" class="nav-child ">2.19 Infinite Mac</a>
+    <a href="/docs/winamp" class="nav-child ">2.20 Winamp</a>
+    <a href="/docs/calendar" class="nav-child ">2.21 Calendar</a>
+    <a href="/docs/dashboard" class="nav-child ">2.22 Dashboard</a>
+    <a href="/docs/contacts" class="nav-child ">2.23 Contacts</a>
+    <a href="/docs/books" class="nav-child ">2.24 Books</a>
+    <a href="/docs/tv" class="nav-child ">2.25 TV</a>
+    <a href="/docs/maps" class="nav-child ">2.26 Maps</a>
+    <a href="/docs/calculator" class="nav-child ">2.27 Calculator</a>
+    <a href="/docs/preview" class="nav-child ">2.28 Preview</a>
+  </div>
+</div>
+<div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/application-framework" class="">3. Application Framework</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/window-management" class="nav-child ">3.1 Window Management</a>
+    <a href="/docs/state-management" class="nav-child ">3.2 State Management</a>
+    <a href="/docs/theme-system" class="nav-child ">3.3 Theme System</a>
+    <a href="/docs/theme-architecture" class="nav-child ">3.3.1 Theme architecture (implementation)</a>
+    <a href="/docs/hooks-architecture" class="nav-child ">3.4 Hooks Architecture</a>
+    <a href="/docs/component-architecture" class="nav-child ">3.5 Component Architecture</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/ai-system" class="">4. AI System</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/file-system" class="">5. File System</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/audio-system" class="">6. Audio System</a>
+  </div>
+</div>
+<div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/ui-components" class="">7. UI Components and Shared Systems</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/component-library" class="nav-child ">7.1 Components</a>
+    <a href="/docs/i18n" class="nav-child ">7.2 i18n & Hooks</a>
+    <a href="/docs/icon-resources" class="nav-child ">7.3 Icon Resources</a>
+  </div>
+</div>
+<div class="nav-group ">
+  <button class="nav-toggle" onclick="toggleNavGroup(this)" aria-expanded="false">
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style="transition: transform 0.2s; transform: rotate(0deg);">
+      <path d="M2 0v8l4-4z"/>
+    </svg>
+    <a href="/docs/api-reference" class="">8. API Reference</a>
+  </button>
+  <div class="nav-children" style="display: none;">
+    <a href="/docs/chat-api" class="nav-child ">8.1 Chat API</a>
+    <a href="/docs/song-api" class="nav-child ">8.2 Song API</a>
+    <a href="/docs/media-api" class="nav-child ">8.3 Media API</a>
+    <a href="/docs/auth-api" class="nav-child ">8.4 Auth API</a>
+    <a href="/docs/rooms-api" class="nav-child ">8.5 Rooms API</a>
+    <a href="/docs/messages-api" class="nav-child ">8.6 Messages API</a>
+    <a href="/docs/presence-api" class="nav-child ">8.7 Presence API</a>
+    <a href="/docs/ai-generation-apis" class="nav-child ">8.8 AI Endpoints</a>
+    <a href="/docs/utility-apis" class="nav-child ">8.9 Utility APIs</a>
+    <a href="/docs/api-design-guide" class="nav-child ">8.10 Skillforge OS API Design Guide</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/changelog" class="">9. Changelog</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/privacy" class="">10. Privacy Policy</a>
+  </div>
+</div>
+<div class="nav-group">
+  <div class="nav-toggle nav-no-toggle">
+    <span class="nav-spacer"></span>
+    <a href="/docs/terms" class="">11. Terms of Service</a>
+  </div>
+</div>
+    </nav>
+    
+    <main class="content">
+      <article>
+        <h1>Self-hosting Skillforge OS on a VPS or Coolify</h1>
+<p>Skillforge OS runs as a <strong>single Bun production server</strong>. That server handles: <ul><li>API routes under <code>api/</code></li></ul><ul><li>built frontend assets from <code>dist/</code></li><li>SPA deep links like <code>/chats</code> and <code>/ipod/:id</code></li><li>docs clean URLs like <code>/docs/overview</code></li><li>health checks at <code>/health</code> and <code>/api/health</code></li><li>runtime config bootstrap at <code>/app-config.js</code></li><li>embed routes (<code>/embed/infinite-mac</code>, <code>/embed/pc</code>)</li><li>optional local websocket realtime</li></ul></p>
+<p>This makes it a good fit for: <ul><li>a plain VPS + systemd</li></ul><ul><li>Coolify Dockerfile deployments</li><li>self-hosted containers behind Traefik / Nginx / Caddy</li></ul></p>
+<hr>
+<h2>1) Prerequisites</h2>
+<ul><li>Linux VPS or container host</li></ul><ul><li>Bun installed (or Docker/Coolify)</li><li>a public domain + TLS if exposing to the internet</li><li>Redis if using self-hosted Redis / local websocket fanout</li></ul>
+<hr>
+<h2>2) Build + run locally in production mode</h2>
+<pre><code>bun install
+bun run build
+APP_PUBLIC_ORIGIN="https://your-domain.com" \
+API_ALLOWED_ORIGINS="https://your-domain.com" \
+bun run start</code></pre>
+<p>Important runtime envs: <ul><li><code>PORT</code> or <code>API_PORT</code> — listening port (defaults to <code>3000</code>)</li></ul><ul><li><code>API_HOST</code> — bind host (defaults to <code>0.0.0.0</code>)</li><li><code>APP_PUBLIC_ORIGIN</code> — canonical browser origin, e.g. <code>https://your-domain.com</code></li><li><code>API_ALLOWED_ORIGINS</code> — comma-separated allowed browser origins for <code>/api/*</code>; supports wildcard subdomain patterns (e.g. <code>*.example.com</code>), and <code>*</code> to allow all origins</li><li><code>STORAGE_PROVIDER</code> — optional explicit storage backend (<code>s3</code>); auto-detected if unset</li><li><code>TRUSTED_PROXY_COUNT</code> — set to <code>1</code> when behind one trusted reverse proxy (nginx/Caddy/Coolify) so per-IP rate limits use <code>X-Forwarded-For</code> correctly</li><li><code>AUTH_COOKIE_SECURE</code> — set to <code>1</code>/<code>true</code> on HTTPS self-hosts if the auth cookie Secure flag is wrong</li><li><code>IP_GEOLOCATION_URL_TEMPLATE</code> — optional override for the IP-geolocation provider (defaults to <code>https://ipwho.is/{ip}</code>); use <code>{ip}</code> as the placeholder</li><li><code>IP_GEOLOCATION_DISABLED</code> — set to <code>1</code>/<code>true</code> to disable the IP-geolocation fallback entirely (no outbound calls)</li></ul></p>
+<hr>
+<h2>3) Redis backend options</h2>
+<p>Skillforge OS supports <strong>two Redis modes</strong>.</p>
+<h3>Option A — Standard Redis / Valkey / self-hosted Redis</h3>
+<p>Recommended for Coolify / VPS deployments:</p>
+<pre><code>REDIS_URL="redis://default:password@redis:6379/0"</code></pre>
+<p>This mode also enables Redis pub/sub for local websocket fanout.</p>
+<h3>Option B — Upstash REST</h3>
+<pre><code>REDIS_KV_REST_API_URL="https://..."
+REDIS_KV_REST_API_TOKEN="..."</code></pre>
+<hr>
+<h2>4) Optional account recovery email</h2>
+<p>Email-based account recovery uses Resend. Set both variables together; if either one is missing, Skillforge OS falls back to Telegram-linked account recovery when available.</p>
+<pre><code>RESEND_API_KEY="..."
+RECOVERY_EMAIL_FROM="Skillforge OS &lt;noreply@example.com&gt;"</code></pre>
+<hr>
+<h2>5) Realtime backend options</h2>
+<p>Skillforge OS supports <strong>two realtime modes</strong>.</p>
+<h3>Option A — Pusher</h3>
+<pre><code>REALTIME_PROVIDER="pusher"
+PUSHER_APP_ID="..."
+PUSHER_KEY="..."
+PUSHER_SECRET="..."
+PUSHER_CLUSTER="us3"</code></pre>
+<h3>Option B — Local websocket</h3>
+<p>Recommended for self-hosted deployments:</p>
+<pre><code>REALTIME_PROVIDER="local"
+REALTIME_WS_PATH="/ws"</code></pre>
+<p>Notes: <ul><li>local websocket mode works best with <code>REDIS_URL</code></li></ul><ul><li>with <code>REDIS_URL</code>, websocket events can fan out across instances via Redis pub/sub</li><li>without <code>REDIS_URL</code>, local websocket delivery falls back to in-process fanout only</li></ul></p>
+<hr>
+<h2>6) Object storage backend</h2>
+<p>Skillforge OS uses <strong>S3-compatible object storage</strong> for cloud sync and private AI chat images. <!-- pragma: allowlist secret --></p>
+<p>Works with MinIO, Cloudflare R2, Backblaze B2, AWS S3, or any S3-compatible provider: <!-- pragma: allowlist secret --></p>
+<pre><code>STORAGE_PROVIDER=s3
+S3_BUCKET=ryos-sync
+S3_REGION=us-east-1
+S3_ENDPOINT=https://s3.your-provider.com
+S3_PUBLIC_ENDPOINT=https://s3.your-provider.com  # public-facing URL (for presigned URLs)
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+S3_FORCE_PATH_STYLE=true   # required for MinIO and some providers
+STORAGE_CLIENT_UPLOAD=proxy  # optional: route browser uploads through the API (use when bucket CORS is unavailable, e.g. local dev on Hetzner)</code></pre>
+<h4>Bucket CORS (required for Cloud Sync)</h4>
+<p>Cloud Sync uploads and downloads use <strong>presigned URLs</strong> opened directly in the browser. The object storage bucket must allow cross-origin <code>PUT</code>, <code>GET</code>, and <code>HEAD</code> from your app origins. Without this, sync fails with errors like “Upload failed before an HTTP response was received”.</p>
+<p>Apply the repo helper (reads <code>.env.local</code> / env vars):</p>
+<pre><code>bun run scripts/configure-s3-cors.ts</code></pre>
+<p>It allows local dev origins (<code>http://localhost:5173</code>, etc.), <code>APP_PUBLIC_ORIGIN</code>, and any explicit entries in <code>API_ALLOWED_ORIGINS</code> (wildcard patterns such as <code>*.example.com</code> are skipped — list concrete origins in <code>S3_CORS_EXTRA_ORIGINS</code> instead).</p>
+<p>If presigned browser uploads still fail (some S3-compatible providers do not return CORS headers on presigned <code>PUT</code> responses), set <code>STORAGE_CLIENT_UPLOAD=proxy</code> so uploads go through <code>/api/sync/v2/blob-upload</code> instead of directly to object storage. <!-- pragma: allowlist secret --></p>
+<p>Example manual CORS rule (Hetzner, MinIO, AWS S3, R2, etc.):</p>
+<pre><code>&lt;CORSConfiguration&gt;
+  &lt;CORSRule&gt;
+    &lt;AllowedOrigin&gt;https://your-domain.com&lt;/AllowedOrigin&gt;
+    &lt;AllowedOrigin&gt;http://localhost:5173&lt;/AllowedOrigin&gt;
+    &lt;AllowedMethod&gt;PUT&lt;/AllowedMethod&gt;
+    &lt;AllowedMethod&gt;GET&lt;/AllowedMethod&gt;
+    &lt;AllowedMethod&gt;HEAD&lt;/AllowedMethod&gt;
+    &lt;AllowedHeader&gt;*&lt;/AllowedHeader&gt;
+    &lt;ExposeHeader&gt;ETag&lt;/ExposeHeader&gt;
+    &lt;MaxAgeSeconds&gt;3600&lt;/MaxAgeSeconds&gt;
+  &lt;/CORSRule&gt;
+&lt;/CORSConfiguration&gt;</code></pre>
+<hr>
+<h2>7) Coolify deployment</h2>
+<p>The repository includes a <code>Dockerfile</code> suitable for Coolify Dockerfile deployments. The image includes a health check endpoint at <code>/health</code>.</p>
+<h3>Suggested Coolify settings</h3>
+<ul><li><strong>Build Pack:</strong> Dockerfile</li></ul><ul><li><strong>Port Exposes:</strong> <code>3000</code> (or whatever you set via <code>PORT</code>)</li><li><strong>Command override:</strong> not required</li><li><strong>Environment variables:</strong> set them in the Coolify UI</li></ul>
+<p>Recommended environment set for a fully self-hosted stack:</p>
+<pre><code>NODE_ENV=production
+PORT=3000
+API_HOST=0.0.0.0
+APP_PUBLIC_ORIGIN=https://your-domain.com
+API_ALLOWED_ORIGINS=https://your-domain.com
+REDIS_URL=redis://default:password@redis:6379/0
+REALTIME_PROVIDER=local
+REALTIME_WS_PATH=/ws
+STORAGE_PROVIDER=s3
+S3_BUCKET=ryos-sync
+S3_REGION=us-east-1
+S3_ENDPOINT=https://s3.your-provider.com
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key</code></pre>
+<p>Coolify's reverse proxy supports WebSockets, so <code>/ws</code> can stay behind the normal app domain.</p>
+<h3>Version / build number (avoid "dev")</h3>
+<p>The app shows a version like <code>10.3 (abc1234)</code> from <code>version.json</code> (independent of the npm/Electron <code>package.json</code> version). Without a commit SHA at build time, it falls back to <code>dev</code>. To show the real commit: <ol><li>In Coolify → your app → <strong>Advanced</strong> → enable <strong>Include Source Commit in Build</strong></li></ol><ol><li>The build script reads <code>SOURCE_COMMIT</code> (Coolify) or <code>GIT_COMMIT_SHA</code> (generic CI)</li></ol></p>
+<p>No extra env vars needed — Coolify injects <code>SOURCE_COMMIT</code> when that option is enabled.</p>
+<p>Coolify deployments are auto-detected (via <code>COOLIFY_*</code> environment variables) and displayed in the Admin app's Server page.</p>
+<h3>Gating Coolify deploys behind GitHub Actions</h3>
+<p>The repository ships with a <code>.github/workflows/build-and-deploy.yml</code> workflow: <ol><li>On <strong>pull requests</strong>, CI runs <code>bun run test:unit</code> and <code>bun run build</code>.</li></ol><ol><li>On <strong>pushes to <code>main</code></strong>, CI builds/pushes the GHCR image (which runs <code>bun run build</code> in Docker) and triggers the Coolify deploy webhook.</li></ol></p>
+<p>Configure <code>COOLIFY_WEBHOOK_URL</code> and <code>COOLIFY_TOKEN</code> in GitHub Actions secrets.</p>
+<p>To wire it up: <ol><li>In Coolify, open your application → <strong>Webhooks</strong> → copy the <strong>Deploy webhook URL</strong> (it looks like <code>https://coolify.example.com/api/v1/deploy?uuid=&lt;resource-uuid&gt;</code>) and the <strong>API token</strong>.</li></ol><ol><li>In GitHub, open <strong>Settings → Secrets and variables → Actions → New repository secret</strong> and add:<ul><li><code>COOLIFY_WEBHOOK_URL</code> — the deploy webhook URL</li><li><code>COOLIFY_TOKEN</code> — the Coolify API token (sent as <code>Authorization: Bearer ...</code>)</li></ul></li><li>Optional: under <strong>Variables</strong>, set <code>COOLIFY_APP_URL</code> to your public app URL so it shows up on the GitHub deployment timeline.</li><li>Optional: in Coolify, disable the built-in Git auto-deploy so the webhook from GitHub Actions is the single source of truth.</li></ol></p>
+<p>The workflow also exposes a manual <code>workflow_dispatch</code> trigger with a <code>force_deploy</code> input that appends <code>force=true</code> to the webhook URL (useful when only environment variables changed).</p>
+<hr>
+<h2>8) VPS + systemd example</h2>
+<p>Example unit file:</p>
+<pre><code>[Unit]
+Description=Skillforge OS self-hosted server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ryos
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=API_HOST=127.0.0.1
+Environment=APP_PUBLIC_ORIGIN=https://your-domain.com
+Environment=API_ALLOWED_ORIGINS=https://your-domain.com
+Environment=REDIS_URL=redis://127.0.0.1:6379/0
+Environment=REALTIME_PROVIDER=local
+Environment=REALTIME_WS_PATH=/ws
+EnvironmentFile=/srv/ryos/.env.local
+ExecStart=/usr/local/bin/bun run start
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+<hr>
+<h2>9) Reverse proxy example (optional)</h2>
+<p>If you still want Nginx or Caddy in front, just proxy the single Bun server:</p>
+<pre><code>server {
+  listen 443 ssl http2;
+  server_name your-domain.com;
+
+  location /ws {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 300s;
+  }
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 300s;
+  }
+}</code></pre>
+<p>No separate static file server is required.</p>
+<hr>
+<h2>10) Notes and caveats</h2>
+<ul><li><code>/api/sync/*</code> endpoints use the storage adapter (<code><a href="https://github.com/ryokun6/ryos/blob/main/api/_utils/storage.ts" target="_blank" rel="noopener noreferrer" style="color: var(--doc-link); text-decoration: underline;">api/_utils/storage.ts</a></code>), which targets S3-compatible storage. See section 6 for configuration. <!-- pragma: allowlist secret --></li></ul><ul><li>For local development:<ul><li><code>bun run dev</code></li><li>or <code>bun run dev:api</code> + <code>bun run dev:vite</code></li></ul></li><li>API tests can target standalone mode:<ul><li><code>API_URL=http://localhost:3000 bun run test:new-api</code></li></ul></li></ul>
+<hr>
+<h2>11) Troubleshooting Docker bridge networking</h2>
+<p>If you deploy a multi-container self-hosted stack with <code>REDIS_URL</code> and see: <ul><li>container-to-container Redis connections timing out</li></ul><ul><li>local websocket fanout failing across instances</li><li>Docker DNS resolving service names correctly, but TCP never connects</li></ul></p>
+<p>then the issue is usually the host's Docker bridge / iptables setup, not Skillforge OS itself.</p>
+<p>This showed up in nested Docker testing when the host had mixed <code>iptables-nft</code> and <code>iptables-legacy</code> state, and bridge traffic was blocked even though containers and DNS were healthy.</p>
+<h3>Quick checks</h3>
+<p>From an app container, verify Redis TCP directly:</p>
+<pre><code>docker exec &lt;app-container&gt; node -e "const net=require('net'); const s=net.createConnection(6379,'redis'); s.on('connect',()=&gt;{console.log('connected'); s.destroy(); process.exit(0)}); s.on('error',e=&gt;{console.error(e.message); process.exit(1)}); setTimeout(()=&gt;{console.error('timeout'); process.exit(2)},3000);"</code></pre>
+<p>If that times out, inspect both iptables frontends:</p>
+<pre><code>update-alternatives --display iptables
+sudo iptables -S FORWARD
+sudo iptables-legacy -S FORWARD
+sudo iptables-nft -S FORWARD</code></pre>
+<h3>Known fix for mixed iptables backend hosts</h3>
+<p>If Docker bridge traffic is being blocked by legacy forwarding rules, this restores bridge connectivity immediately:</p>
+<pre><code>sudo iptables-legacy -P FORWARD ACCEPT</code></pre>
+<p>After applying it, re-test Redis TCP between containers before debugging Skillforge OS.</p>
+<h3>Important note</h3>
+<p>This is a host-level Docker networking issue. If you see the timeout only on a specific VM, VPS image, or nested-container environment, fix the Docker / iptables configuration there rather than changing Skillforge OS application code.</p>
+
+      </article>
+      
+      <nav class="nav">
+        <a href="/docs/api-architecture">← API Architecture</a>
+        <a href="/docs/apps">Apps →</a>
+      </nav>
+      
+    </main>
+  </div>
+  
+  <script>
+    function toggleNavGroup(button) {
+      const group = button.closest('.nav-group');
+      const children = group.querySelector('.nav-children');
+      const svg = button.querySelector('svg');
+      const isExpanded = group.classList.contains('expanded');
+      
+      if (isExpanded) {
+        group.classList.remove('expanded');
+        children.style.display = 'none';
+        svg.style.transform = 'rotate(0deg)';
+        button.setAttribute('aria-expanded', 'false');
+      } else {
+        group.classList.add('expanded');
+        children.style.display = 'block';
+        svg.style.transform = 'rotate(90deg)';
+        button.setAttribute('aria-expanded', 'true');
+      }
+    }
+    
+    document.addEventListener('click', (e) => {
+      const sidebar = document.querySelector('.sidebar');
+      const menuBtn = document.querySelector('.menu-btn');
+      const clickedMenuBtn = menuBtn && menuBtn.contains(e.target);
+      if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !clickedMenuBtn) {
+        sidebar.classList.remove('open');
+      }
+    });
+  </script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    // Stash each diagram's source so we can re-render with a fresh palette when
+    // the color scheme is toggled live (mermaid bakes colors into the SVG).
+    var diagrams = Array.prototype.slice.call(document.querySelectorAll('pre.mermaid'));
+    diagrams.forEach(function (el) {
+      if (el.getAttribute('data-mermaid-src') === null) {
+        el.setAttribute('data-mermaid-src', el.textContent);
+      }
+    });
+    function themeVariables(dark) {
+      return dark
+        ? {
+            fontFamily: '"Geneva", system-ui, sans-serif',
+            fontSize: '10px',
+            primaryColor: '#2c2c30',
+            primaryBorderColor: 'rgba(255,255,255,0.22)',
+            primaryTextColor: '#ededf0',
+            lineColor: '#9a9aa2',
+            secondaryColor: '#27272b',
+            tertiaryColor: '#1e1e21'
+          }
+        : {
+            fontFamily: '"Geneva", system-ui, sans-serif',
+            fontSize: '10px',
+            primaryColor: '#f0f0f0',
+            primaryBorderColor: '#ccc',
+            primaryTextColor: '#000',
+            lineColor: '#666',
+            secondaryColor: '#f8f8f8',
+            tertiaryColor: '#fff'
+          };
+    }
+    async function renderMermaid() {
+      if (diagrams.length === 0) return;
+      var dark = !!window.__ryosDocsDark;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        securityLevel: 'loose',
+        themeVariables: themeVariables(dark),
+        flowchart: { curve: 'basis', padding: 8, nodeSpacing: 30, rankSpacing: 30 },
+        sequence: { actorFontSize: 10, messageFontSize: 10, noteFontSize: 10 }
+      });
+      diagrams.forEach(function (el) {
+        var src = el.getAttribute('data-mermaid-src');
+        if (src !== null) {
+          el.removeAttribute('data-processed');
+          // Restore the raw diagram definition as text (not innerHTML): mermaid
+          // reads the source from textContent, and the definition contains
+          // characters like ">" / "-->" that must not be parsed as HTML.
+          el.textContent = src;
+        }
+      });
+      try {
+        await mermaid.run({ nodes: diagrams });
+      } catch (e) {
+        /* ignore mermaid parse/render errors */
+      }
+    }
+    window.__ryosDocsRenderMermaid = renderMermaid;
+    renderMermaid();
+  </script>
+</body>
+</html>
